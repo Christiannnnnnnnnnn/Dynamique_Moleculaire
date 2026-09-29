@@ -16,10 +16,11 @@ M = 57e-3
 N_Avogadro = 6.022e23
 m = M / N_Avogadro      # masse de l'atome en kg => 9.5e-26 kg
 
-T = 100
+T = 400
 v_moy = np.sqrt(kB*T/m) # vitesse moyenne des particules en m/s
 
 C = []                  # liste contenant toutes matrices d'état
+E = []                  # liste contenant toutes les énergies mécaniques au cours du temps
 
 
 # FONCTIONS
@@ -60,6 +61,10 @@ def E_m(C):
     return E_m
 
 
+def temperature_microcanonique(n, m, kB, V):
+    T_sys = m / (n*kB)* np.sum(V**2)
+    return T_sys
+
 
 # INITIALISATION DES TABLEAUX
 
@@ -71,12 +76,16 @@ A = calcul_accelerations(np.zeros(n), X, k, m, sigma)   # accélération des par
 # Matrice d'état initiale
 C_0 = np.stack((N,X,V,A))
 C.append(C_0)
-
+E.append(E_m(C_0))
 
 # On fait tourner l'algorithme sur 1000 itérations
+t = [0]
 for i in range(1000):
+    t.append(t[i]+dt)
     C_i = verlet_vitesse(C_0, dt, k, m, sigma)
     C.append(C_i)
+    E.append(E_m(C_i))
+
 
 '''
 print("Etat initial C :")
@@ -90,6 +99,12 @@ X_n = C_n[1]
 a = []
 for i in range(len(X_n)-1):
     a.append(X_n[i+1] - X_n[i])
-
 plt.hist(a)
 plt.show()
+
+# On trace l'évolution de l'énergie mécanique au cours du temps
+plt.plot(t[1:],E[1:])
+plt.show()
+
+T_final = temperature_microcanonique(n, m, kB, C[-1][2])
+print(T_final)
