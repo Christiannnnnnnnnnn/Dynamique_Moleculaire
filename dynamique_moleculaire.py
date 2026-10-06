@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 # PARAMETRES
 
-n = 5000                # nombre d'atomes
+n = 50000                # nombre d'atomes
 dt = 5e-14              # pas de temps
 sigma = 4e-10           # distance interatomique
 L = n*sigma             # longueur de la chaîne
@@ -16,7 +16,7 @@ M = 57e-3
 N_Avogadro = 6.022e23
 m = M / N_Avogadro      # masse de l'atome en kg => 9.5e-26 kg
 
-T = 50
+T = 100
 v_moy = np.sqrt(kB*T/m) # vitesse moyenne des particules en m/s
 
 C = []                  # liste contenant toutes matrices d'état
