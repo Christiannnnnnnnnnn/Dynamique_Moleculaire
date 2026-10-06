@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy
 
 # PARAMETRES
 
-n = 50000                # nombre d'atomes
+n = 5000                # nombre d'atomes
 dt = 5e-14              # pas de temps
 sigma = 4e-10           # distance interatomique
 L = n*sigma             # longueur de la chaîne
@@ -53,10 +54,10 @@ def E_m(C):
     X, V = C[1], C[2]
     E_c = 0
     E_p = 0
-    for i in range(len(C)):
+    for i in range(len(X)):
         E_c += 1/2 * m * V[i]**2
         # E_p = epsilon*(((sigma/V_n)**12) - 2*(sigma/V_n)**6) => potentiel de Lennard-Jones on le mettra parès
-        E_p += 1/2 * k * X[i]**2
+        E_p += 1/2 * k * (X[i] - X[i-1] - sigma)**2
     E_m = E_c + E_p
     return E_m
 
@@ -72,6 +73,11 @@ def autocorr_one_step(C_0, C_n):
     v_t = C_n[2]
     gamma = np.sum(v_0 * v_t)
     return gamma
+
+
+def densite_etats(gamma):
+    g = np.fft.fft(gamma)
+    return g
 
 
 # INITIALISATION DES TABLEAUX
@@ -116,7 +122,10 @@ for i in range(1, 1000):
     C.append(C_i)
     E.append(E_m(C_i))
     Autocorr_list.append(autocorr_one_step(C_0, C_i))
-    
+   
+
+print(len(Autocorr_list))
+
 
 # gamma = np.sum(Autocorr_list)
 
