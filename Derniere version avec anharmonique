@@ -17,14 +17,15 @@ import matplotlib.pyplot as plt
 
 # PARAMETRES
 
-n = 50000                # nombre d'atomes
+n = 50000               # nombre d'atomes
 dt = 5e-14              # pas de temps
 sigma = 4e-10           # distance interatomique
 L = n*sigma             # longueur de la chaîne
 kB = 1.38e-23
 epsilon = 400           # 400 K = profondeur du puits
+epsilon_J = epsilon * kB # Energie en Joule
 
-k = 72*epsilon*kB/(sigma**2)   # constante de raideur
+k = 72*epsilon_J/(sigma**2)   # constante de raideur
 
 M = 57e-3
 N_Avogadro = 6.022e23
@@ -172,13 +173,12 @@ import matplotlib.pyplot as plt
 # PARAMETRES
 
 n = 50000                # nombre d'atomes
-dt = 5e-14              # pas de temps
+dt = 2e-14              # pas de temps
 sigma = 4e-10           # distance interatomique
 L = n*sigma             # longueur de la chaîne
 kB = 1.38e-23
 epsilon = 400           # 400 K = profondeur du puits
-
-k = 72*epsilon*kB/(sigma**2)   # constante de raideur
+epsilon_J = epsilon * kB # Energie en Joule
 
 M = 57e-3
 N_Avogadro = 6.022e23
@@ -193,35 +193,46 @@ E = []                  # liste contenant toutes les énergies mécaniques au co
 
 # FONCTIONS
 
-def calcul_accelerations(A, X, k, m, sigma):
-    '''On fait le calcul à partir du bilan des forces sur la chaîne d'atomes.'''
-    A[0] = k/m * (X[1] - X[0] - sigma)              # a_0 = k/m * (x_1 - x_0 - sigma)
-    A[1:-1] = k/m * (X[2:] - 2*X[1:-1] + X[:-2])    # a_i = k/m * (x_(i+1) - 2x_i + x_(i-1))
-    A[-1] = k/m * (X[-2] - X[-1] + sigma)           # a_(N-1) = k/m * (x_(N-2) - x_(N-1) + sigma)
+# def calcul_accelerations(A, X, k, m, sigma):
+#     '''On fait le calcul à partir du bilan des forces sur la chaîne d'atomes.'''
+#     A[0] = k/m * (X[1] - X[0] - sigma)              # a_0 = k/m * (x_1 - x_0 - sigma)
+#     A[1:-1] = k/m * (X[2:] - 2*X[1:-1] + X[:-2])    # a_i = k/m * (x_(i+1) - 2x_i + x_(i-1))
+#     A[-1] = k/m * (X[-2] - X[-1] + sigma)           # a_(N-1) = k/m * (x_(N-2) - x_(N-1) + sigma)
 
+#     return A
+
+def calcul_accelerations(X, m, sigma, epsilon_J):
+    A = np.zeros(len(X))
+    r_g = X[1:-1] - X[:-2]
+    r_d = X[2:] - X[1:-1]
+    
+    # Forces de Lennard-Jones
+    f_d = 24 * epsilon_J / sigma * (2 * (sigma / r_d)**13 - (sigma / r_d)**7)
+    f_g = 24 * epsilon_J / sigma * (2 * (sigma / r_g)**13 - (sigma / r_g)**7)
+    
+    A[1:-1] = (f_d - f_g) / m
+    A[0] = f_d[0] / m
+    A[-1] = -f_g[-1] / m
     return A
 
 
 # ALGORITHME DE VERLET VITESSE
-def verlet_vitesse(C, dt, k, m, sigma):
-    '''On fait une itération de l'algorithme de Verlet Vitesse. En entrée, la matrice d'état à t ; en sortie, la matrice d'état à t+dt.'''
+def verlet_vitesse(C, dt, m, sigma, epsilon_J):
     X, V, A = C[1], C[2], C[3]
-    V_ij = V + A * dt/2
+    V_ij = V + A * dt / 2
     X_n = X + V_ij * dt
-    A_n = calcul_accelerations(np.zeros(n), X_n, k, m, sigma)
-    V_n = V_ij + A_n * dt/2
+    
+    A_n = calcul_accelerations(X_n, m, sigma, epsilon_J)
+    V_n = V_ij + A_n * dt / 2
 
-    # Matrice d'état à t + dt
-    C_n = np.stack((N, X_n, V_n, A_n))
-
+    C_n = np.stack((np.arange(len(X)), X_n, V_n, A_n))
     return C_n
-
 
 def E_m(C):
     X, V = C[1], C[2]
     r_ij = np.abs(X[1:] - X[:-1]) # Distance entre chaque paire de particule
     E_c = 1/2 * m * np.sum(V**2)
-    E_p = np.sum(epsilon*( (sigma/r_ij)**12 
+    E_p = np.sum(epsilon_J*( (sigma/r_ij)**12 
                            - 2*(sigma/r_ij)**6 )
                  )
 
@@ -247,7 +258,7 @@ def autocorr_one_step(C_0, C_n):
 N = np.arange(n)                                        # tableau index
 X = np.arange(0,L,sigma)                                # positions des particules
 V = np.random.normal(loc=0, scale=v_moy, size=n)        # vitesse des particules
-A = calcul_accelerations(np.zeros(n), X, k, m, sigma)   # accélération des particules
+A = calcul_accelerations(X, m, sigma, epsilon_J)   # accélération des particules
 
 # Matrice d'état initiale
 C_0 = np.stack((N,X,V,A))
@@ -307,6 +318,7 @@ axes[1].plot(t_plot, E[1:], color="forestgreen", linewidth=1.2)
 axes[1].set_title(r"Mechanical Energy $E_m(t)$ vs Time", fontsize=12, fontweight="bold")
 axes[1].set_xlabel("Time (ps)")
 axes[1].set_ylabel(r"$E_m$ (J)")
+axes[1].set_yscale("log")
 axes[1].grid(True, linestyle=":", alpha=0.6)
 
 # 3. Velocity Autocorrelation Function (VACF)
